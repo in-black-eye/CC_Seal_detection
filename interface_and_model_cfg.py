@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import supervision as sv
 import os
+from pathlib import Path
+from shutil import rmtree
 
 from zipfile import ZipFile
 from gradio_image_annotation import image_annotator
@@ -12,6 +14,8 @@ from gradio_image_annotation import image_annotator
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
+import tqdm
+import time
 
 pytesseract.pytesseract.tesseract_cmd = "PATH_TO_TESSERACT_EXE"
 
@@ -56,7 +60,15 @@ images = []
 img_num_now = 0
 
 
-def process_archive(files, slider_value):
+def process_archive(files, slider_value, progress=gr.Progress()):
+    annotations.clear()
+
+    for path in Path('/content/temp').glob('*'):
+        if path.is_dir():
+            rmtree(path)
+        else:
+            path.unlink()
+
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = slider_value
     cfg.MODEL.RETINANET.SCORE_THRESH_TEST = slider_value
     predictor = DefaultPredictor(cfg)
@@ -64,8 +76,13 @@ def process_archive(files, slider_value):
     with ZipFile(files[0], "r") as archive:
         archive.extractall("temp")
 
+    progress(0, desc="Starting")
+    time.sleep(1)
+    progress(0.05)
     images.clear()
-    for img in os.listdir("temp"):
+    files_in_temp = os.listdir("/content/temp")
+    for img in progress.tqdm(files_in_temp, desc="Process"):
+        time.sleep(0.25)
         images.append("temp/" + img)
         image = cv2.imread(f"temp/{img}")
         outputs = predictor(image)
@@ -105,7 +122,7 @@ def process_archive(files, slider_value):
 
         boxes_annotations = process_annotations((processed_detections.xyxy, processed_detections.class_id))
         annotations.append(boxes_annotations)
-
+    return "Обработка завершена"
 
 # Функция обработки аннотаций
 def process_annotations(annotations):
@@ -188,11 +205,13 @@ with gr.Blocks() as main:
         confidence_slider = gr.Slider(0, 1, value=0.9, step=0.05, label="Уверенность модели")
         zip_archive_input = gr.File(file_count="multiple")
         submit_btn = gr.Button("Submit", variant="primary")
-        submit_btn.click(process_archive, [zip_archive_input, confidence_slider])
+        status = gr.Text(show_label=False)
+        submit_btn.click(process_archive, [zip_archive_input, confidence_slider], status)
+
 
     with gr.Tab("Object annotation", id="tab_object_annotation"):
         button_get_img = gr.Button("get_annot")
-        prev_btn = gr.Button("prev", )
+        prev_btn = gr.Button("prev",)
         next_btn = gr.Button("next")
         save_annot_btn = gr.Button('save results to csv file')
 
@@ -206,10 +225,10 @@ with gr.Blocks() as main:
             box_min_size=4
         )
 
-        prev_btn.click(prev_img, annotator, annotator)
-        next_btn.click(next_img, annotator, annotator)
+        prev_btn.click(prev_img, [], annotator)
+        next_btn.click(next_img, [], annotator)
         button_get_img.click(update_ann, [], annotator)
-        save_annot_btn.click(get_results, [], [])
+        save_annot_btn.click(get_results,[] , [])
         annotator.change(save_annot, annotator)
 
 main.launch()
