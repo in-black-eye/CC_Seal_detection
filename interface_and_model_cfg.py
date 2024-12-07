@@ -14,8 +14,10 @@ from gradio_image_annotation import image_annotator
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
-import tqdm
 import time
+
+IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотографии для обработки
+PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
 
 pytesseract.pytesseract.tesseract_cmd = "PATH_TO_TESSERACT_EXE"
 
@@ -63,7 +65,21 @@ img_num_now = 0
 def process_archive(files, slider_value, progress=gr.Progress()):
     annotations.clear()
 
-    for path in Path('/content/temp').glob('*'):
+    with open(PATH_TO_CSV_TABLE, 'w', newline='', encoding='utf-8') as csvfile:
+        nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        nerpwrite.writerow(
+            ["Номер фотоловушки (если не переименуем фотографии)", "название фото (номер фото)",
+             "дата (формат дд/мм/гггг)",
+             "время (формат чч/мм/сс)", "температура с фотоловушки", "Количество нерп на суше",
+             "Количество нерп в воде"])
+    csvfile.close()
+
+    if not os.path.exists(IMAGE_FOLDER_NAME):
+        os.makedirs(IMAGE_FOLDER_NAME)
+    else:
+        print(f"Папка `{IMAGE_FOLDER_NAME}` уже существует!")
+
+    for path in Path(IMAGE_FOLDER_NAME).glob('*'):
         if path.is_dir():
             rmtree(path)
         else:
@@ -74,17 +90,17 @@ def process_archive(files, slider_value, progress=gr.Progress()):
     predictor = DefaultPredictor(cfg)
 
     with ZipFile(files[0], "r") as archive:
-        archive.extractall("temp")
+        archive.extractall(IMAGE_FOLDER_NAME)
 
     progress(0, desc="Starting")
     time.sleep(1)
     progress(0.05)
     images.clear()
-    files_in_temp = os.listdir("/content/temp")
+    files_in_temp = os.listdir(IMAGE_FOLDER_NAME)
     for img in progress.tqdm(files_in_temp, desc="Process"):
         time.sleep(0.25)
-        images.append("temp/" + img)
-        image = cv2.imread(f"temp/{img}")
+        images.append(f"{IMAGE_FOLDER_NAME}/" + img)
+        image = cv2.imread(f"{IMAGE_FOLDER_NAME}/{img}")
         outputs = predictor(image)
         detections = sv.Detections.from_detectron2(outputs)
 
@@ -124,6 +140,7 @@ def process_archive(files, slider_value, progress=gr.Progress()):
         annotations.append(boxes_annotations)
     return "Обработка завершена"
 
+
 # Функция обработки аннотаций
 def process_annotations(annotations):
     json_ann = []
@@ -148,16 +165,16 @@ def process_annotations(annotations):
 def update_ann():
     global img_num_now
     img_num_now = 0
-    sample_annotation["image"] = "temp/" + os.listdir("temp")[img_num_now]
+    sample_annotation["image"] = f"{IMAGE_FOLDER_NAME}/" + os.listdir(IMAGE_FOLDER_NAME)[img_num_now]
     sample_annotation["boxes"] = annotations[img_num_now]
     return sample_annotation
 
 
 def next_img():
     global img_num_now
-    if img_num_now + 1 < len(os.listdir("temp")):
+    if img_num_now + 1 < len(os.listdir(IMAGE_FOLDER_NAME)):
         img_num_now += 1
-        sample_annotation["image"] = "temp/" + os.listdir("temp")[img_num_now]
+        sample_annotation["image"] = f"{IMAGE_FOLDER_NAME}/" + os.listdir(IMAGE_FOLDER_NAME)[img_num_now]
         sample_annotation["boxes"] = annotations[img_num_now]
     return sample_annotation
 
@@ -167,7 +184,7 @@ def prev_img():
 
     if img_num_now - 1 >= 0:
         img_num_now -= 1
-        sample_annotation["image"] = "temp/" + os.listdir("temp")[img_num_now]
+        sample_annotation["image"] = f"{IMAGE_FOLDER_NAME}/" + os.listdir(IMAGE_FOLDER_NAME)[img_num_now]
         sample_annotation["boxes"] = annotations[img_num_now]
     return sample_annotation
 
@@ -179,10 +196,10 @@ def save_annot(annotator):
 
 def get_results():
     global img_num_now
-    img_cv = cv2.imread(f"temp/{os.listdir('temp')[img_num_now]}")
+    img_cv = cv2.imread(f"{IMAGE_FOLDER_NAME}/{os.listdir(IMAGE_FOLDER_NAME)[img_num_now]}")
     img_cv = cv2.resize(img_cv, (0, 0), fx=0.5, fy=0.5)
     height, width, _ = img_cv.shape
-    cropped_img_cv = img_cv[height - 300:height]
+    cropped_img_cv = img_cv[height - 50:height]
     count_seal_rock = 0
     count_seal_water = 0
     for box in annotations[img_num_now]:
@@ -194,13 +211,15 @@ def get_results():
     img_rgb = cv2.cvtColor(cropped_img_cv, cv2.COLOR_BGR2RGB)
     data = pytesseract.image_to_string(img_rgb, config='--psm 6').split('\n')[-2].split()
 
-    with open('example_table.csv', 'a', newline='') as csvfile:
+    with open(PATH_TO_CSV_TABLE, 'a', newline='', encoding='utf-8') as csvfile:
         nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         nerpwrite.writerow(
-            [0, os.listdir('temp')[img_num_now], data[3], data[4], data[-2], count_seal_rock, count_seal_water])
+            [0, os.listdir(IMAGE_FOLDER_NAME)[img_num_now], data[3], data[4], data[-2], count_seal_rock,
+             count_seal_water])
+    csvfile.close()
 
 
-with gr.Blocks() as main:
+with gr.Blocks(theme=gr.themes.Soft()) as main:
     with gr.Tab("Process"):
         confidence_slider = gr.Slider(0, 1, value=0.9, step=0.05, label="Уверенность модели")
         zip_archive_input = gr.File(file_count="multiple")
@@ -208,16 +227,19 @@ with gr.Blocks() as main:
         status = gr.Text(show_label=False)
         submit_btn.click(process_archive, [zip_archive_input, confidence_slider], status)
 
-
     with gr.Tab("Object annotation", id="tab_object_annotation"):
-        button_get_img = gr.Button("get_annot")
-        prev_btn = gr.Button("prev",)
-        next_btn = gr.Button("next")
-        save_annot_btn = gr.Button('save results to csv file')
+        button_get_img = gr.Button("Показать аннотации", variant='primary')
+        with gr.Row():
+            prev_btn = gr.Button("Предыдущая фотография", variant='huggingface')
+            next_btn = gr.Button("Следующая фотография", variant='huggingface')
+        with gr.Row():
+            save_annot_btn = gr.Button('Сохранить информацию в таблицу', variant='huggingface')
+            download_btn = gr.DownloadButton("Скачать таблицу", visible=True,
+                                             value=PATH_TO_CSV_TABLE, variant='secondary')
 
         annotator = image_annotator(
             label_list=["seal_water", "seal_rock"],
-            label_colors=[(0, 0, 255), (0, 255, 255)],
+            label_colors=[(255, 0, 0), (0, 255, 0)],
             show_label=False,
             boxes_alpha=0.1,
             box_thickness=1,
@@ -228,7 +250,7 @@ with gr.Blocks() as main:
         prev_btn.click(prev_img, [], annotator)
         next_btn.click(next_img, [], annotator)
         button_get_img.click(update_ann, [], annotator)
-        save_annot_btn.click(get_results,[] , [])
+        save_annot_btn.click(get_results, [], [])
         annotator.change(save_annot, annotator)
 
 main.launch()
