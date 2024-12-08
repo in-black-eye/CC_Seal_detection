@@ -14,10 +14,11 @@ from gradio_image_annotation import image_annotator
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
-import time
+import json
 
 IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотографии для обработки
 PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
+PATH_TO_SAVE_ANNOTATIONS = 'saved_annotations'  # Папка, где будут храниться аннотации к фото.
 
 pytesseract.pytesseract.tesseract_cmd = "PATH_TO_TESSERACT_EXE"
 
@@ -62,8 +63,20 @@ images = []
 img_num_now = 0
 
 
+def zipdir(path, ziph):
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            ziph.write(os.path.join(root, file))
+
+
 def process_archive(files, slider_value, progress=gr.Progress()):
+    global sample_annotation
     annotations.clear()
+
+    sample_annotation = {
+        "image": "",
+        "boxes": []
+    }
 
     with open(PATH_TO_CSV_TABLE, 'w', newline='', encoding='utf-8') as csvfile:
         nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -79,6 +92,12 @@ def process_archive(files, slider_value, progress=gr.Progress()):
     else:
         print(f"Папка `{IMAGE_FOLDER_NAME}` уже существует!")
 
+    if not os.path.exists(PATH_TO_SAVE_ANNOTATIONS):
+        os.makedirs(PATH_TO_SAVE_ANNOTATIONS)
+        os.makedirs(f"{PATH_TO_SAVE_ANNOTATIONS}/image")
+    else:
+        print(f"Папка `{PATH_TO_SAVE_ANNOTATIONS}` уже существует!")
+
     for path in Path(IMAGE_FOLDER_NAME).glob('*'):
         if path.is_dir():
             rmtree(path)
@@ -93,12 +112,10 @@ def process_archive(files, slider_value, progress=gr.Progress()):
         archive.extractall(IMAGE_FOLDER_NAME)
 
     progress(0, desc="Starting")
-    time.sleep(1)
     progress(0.05)
     images.clear()
     files_in_temp = os.listdir(IMAGE_FOLDER_NAME)
     for img in progress.tqdm(files_in_temp, desc="Process"):
-        time.sleep(0.25)
         images.append(f"{IMAGE_FOLDER_NAME}/" + img)
         image = cv2.imread(f"{IMAGE_FOLDER_NAME}/{img}")
         outputs = predictor(image)
@@ -194,6 +211,41 @@ def save_annot(annotator):
     annotations[img_num_now] = annotator["boxes"]
 
 
+def download_annotations():
+    classes_id = []
+    boxes = []
+    for j in range(len(annotations)):
+        for i in range(len(annotations[j])):
+            classes_id.append(1) if annotations[j][i]['label'] == 'seal_rock' else classes_id.append(2)
+            boxes.append(np.array([annotations[j][i]['xmin'], annotations[j][i]['ymin'],
+                                   annotations[j][i]['xmax'], annotations[j][i]['ymax']]))
+
+        classes_id = np.array(classes_id)
+        boxes = np.array(boxes)
+
+        detections = sv.Detections(xyxy=boxes, class_id=classes_id)
+
+        detectionDataset = sv.DetectionDataset(classes=['seal_water', 'seal_rock'],
+                                               images={f"{images[j]}": cv2.imread(images[j])},
+                                               annotations={f"{images[j]}": detections})
+
+        detectionDataset.as_coco(images_directory_path='activelearning/image',
+                                 annotations_path=f'activelearning/{images[j][:-4]}.json')
+
+        with open(f'activelearning/{images[j][:-4]}.json', 'r') as f:
+            data = json.load(f)
+
+        data['categories'] = [{"id": 0, "name": "seal", "supercategory": "none"},
+                              {"id": 1, "name": "seal_rocks", "supercategory": "seal"},
+                              {"id": 2, "name": "seal_water", "supercategory": "seal"}]
+
+        with open(f'activelearning/{images[j][:-4]}.json', 'w') as f:
+            json.dump(data, f, indent=4)
+
+        classes_id = []
+        boxes = []
+
+
 def get_results():
     global img_num_now
     img_cv = cv2.imread(f"{IMAGE_FOLDER_NAME}/{os.listdir(IMAGE_FOLDER_NAME)[img_num_now]}")
@@ -228,7 +280,9 @@ with gr.Blocks(theme=gr.themes.Soft()) as main:
         submit_btn.click(process_archive, [zip_archive_input, confidence_slider], status)
 
     with gr.Tab("Object annotation", id="tab_object_annotation"):
-        button_get_img = gr.Button("Показать аннотации", variant='primary')
+        with gr.Row():
+            button_get_img = gr.Button("Показать аннотации", variant='primary', scale=7)
+            button_get_annotations = gr.Button("Сохранить аннотации", scale=1)
         with gr.Row():
             prev_btn = gr.Button("Предыдущая фотография", variant='huggingface')
             next_btn = gr.Button("Следующая фотография", variant='huggingface')
@@ -251,6 +305,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as main:
         next_btn.click(next_img, [], annotator)
         button_get_img.click(update_ann, [], annotator)
         save_annot_btn.click(get_results, [], [])
+        button_get_annotations.click(download_annotations, [], [])
         annotator.change(save_annot, annotator)
 
 main.launch()
