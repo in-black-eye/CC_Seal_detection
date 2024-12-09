@@ -15,6 +15,9 @@ from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 import json
+import warnings
+
+warnings.filterwarnings("ignore")
 
 IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотографии для обработки
 PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
@@ -116,7 +119,7 @@ def process_archive(files, slider_value, progress=gr.Progress()):
     files_in_temp = os.listdir(IMAGE_FOLDER_NAME)
     for img in progress.tqdm(files_in_temp, desc="Process"):
         images.append(f"{IMAGE_FOLDER_NAME}/" + img)
-        #print(f"{IMAGE_FOLDER_NAME}/{img}")
+        # print(f"{IMAGE_FOLDER_NAME}/{img}")
         image = cv2.imread(f"{IMAGE_FOLDER_NAME}/{img}")
         outputs = predictor(image)
         try:
@@ -251,6 +254,10 @@ def download_annotations():
         boxes = []
 
 
+def get_csv_file():
+    return PATH_TO_CSV_TABLE
+
+
 def get_results():
     global img_num_now
     img_cv = cv2.imread(f"{IMAGE_FOLDER_NAME}/{os.listdir(IMAGE_FOLDER_NAME)[img_num_now]}")
@@ -274,6 +281,8 @@ def get_results():
         nerpwrite.writerow(
             [0, photo, data[3], data[4], data[-2], count_seal_rock, count_seal_water])
 
+    return PATH_TO_CSV_TABLE
+
 
 with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
     with gr.Tab("Process"):
@@ -292,8 +301,8 @@ with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
             next_btn = gr.Button("Следующая фотография", variant='huggingface')
         with gr.Row():
             save_annot_btn = gr.Button('Сохранить информацию в таблицу', variant='huggingface')
-            download_btn = gr.DownloadButton("Скачать таблицу", visible=True,
-                                             value=PATH_TO_CSV_TABLE, variant='secondary')
+            download_btn = gr.Button("Сохранить таблицу")
+            download_btn_hidden = gr.DownloadButton(visible=False, elem_id="download_btn_hidden")
 
         annotator = image_annotator(
             label_list=["seal_water", "seal_rock"],
@@ -311,5 +320,8 @@ with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
         save_annot_btn.click(get_results, [], [])
         button_get_annotations.click(download_annotations, [], [])
         annotator.change(save_annot, annotator)
+        download_btn.click(fn=get_csv_file, inputs=None, outputs=[download_btn_hidden]).then(fn=None, inputs=None,
+                                                                                             outputs=None,
+                                                                                             js="() => document.querySelector('#download_btn_hidden').click()")
 
 main.launch()
