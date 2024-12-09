@@ -20,7 +20,7 @@ IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотогра
 PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
 PATH_TO_SAVE_ANNOTATIONS = 'saved_annotations'  # Папка, где будут храниться аннотации к фото.
 
-pytesseract.pytesseract.tesseract_cmd = "PATH_TO_TESSERACT_EXE"
+pytesseract.pytesseract.tesseract_cmd = r'C:\Users\mark\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
 
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
@@ -40,7 +40,7 @@ cfg.INPUT.MIN_SIZE_TEST = 0
 '''Инференс модели'''
 
 cfg.TEST.PRECISE_BN = True
-cfg.MODEL.WEIGHTS = "MODEL_WEIGHTS"
+cfg.MODEL.WEIGHTS = "output101FPN_3x1/model_0077399.pth"
 
 cfg.MODEL.RPN.IOU_THRESHOLDS = [0.1, 0.1]
 cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.1]
@@ -271,7 +271,7 @@ def get_results():
     csvfile.close()
 
 
-with gr.Blocks(theme=gr.themes.Soft()) as main:
+with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
     with gr.Tab("Process"):
         confidence_slider = gr.Slider(0, 1, value=0.9, step=0.05, label="Уверенность модели")
         zip_archive_input = gr.File(file_count="multiple")
@@ -281,7 +281,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as main:
 
     with gr.Tab("Object annotation", id="tab_object_annotation"):
         with gr.Row():
-            button_get_img = gr.Button("Показать аннотации", variant='primary', scale=7)
+            button_get_img = gr.Button("Показать аннотации", variant='primary', scale=6)
             button_get_annotations = gr.Button("Сохранить аннотации", scale=1)
         with gr.Row():
             prev_btn = gr.Button("Предыдущая фотография", variant='huggingface')
@@ -293,7 +293,7 @@ with gr.Blocks(theme=gr.themes.Soft()) as main:
 
         annotator = image_annotator(
             label_list=["seal_water", "seal_rock"],
-            label_colors=[(255, 0, 0), (0, 255, 0)],
+            label_colors=[(0, 255, 0), (255, 0, 0)],
             show_label=False,
             boxes_alpha=0.1,
             box_thickness=1,
