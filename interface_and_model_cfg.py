@@ -20,7 +20,7 @@ IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотогра
 PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
 PATH_TO_SAVE_ANNOTATIONS = 'saved_annotations'  # Папка, где будут храниться аннотации к фото.
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Users\mark\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = "PATH_TO_TESSERACT_EXE"
 
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
@@ -40,7 +40,7 @@ cfg.INPUT.MIN_SIZE_TEST = 0
 '''Инференс модели'''
 
 cfg.TEST.PRECISE_BN = True
-cfg.MODEL.WEIGHTS = "output101FPN_3x1/model_0077399.pth"
+cfg.MODEL.WEIGHTS = "MODEL_WEIGHTS"
 
 cfg.MODEL.RPN.IOU_THRESHOLDS = [0.1, 0.1]
 cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.1]
@@ -85,7 +85,6 @@ def process_archive(files, slider_value, progress=gr.Progress()):
              "дата (формат дд/мм/гггг)",
              "время (формат чч/мм/сс)", "температура с фотоловушки", "Количество нерп на суше",
              "Количество нерп в воде"])
-    csvfile.close()
 
     if not os.path.exists(IMAGE_FOLDER_NAME):
         os.makedirs(IMAGE_FOLDER_NAME)
@@ -117,44 +116,50 @@ def process_archive(files, slider_value, progress=gr.Progress()):
     files_in_temp = os.listdir(IMAGE_FOLDER_NAME)
     for img in progress.tqdm(files_in_temp, desc="Process"):
         images.append(f"{IMAGE_FOLDER_NAME}/" + img)
+        #print(f"{IMAGE_FOLDER_NAME}/{img}")
         image = cv2.imread(f"{IMAGE_FOLDER_NAME}/{img}")
         outputs = predictor(image)
-        detections = sv.Detections.from_detectron2(outputs)
+        try:
+            detections = sv.Detections.from_detectron2(outputs)
+            boxes = detections.xyxy
+            classes = detections.class_id
+            masks = detections.mask
+            scores = detections.confidence
 
-        boxes = detections.xyxy
-        classes = detections.class_id
-        masks = detections.mask
-        scores = detections.confidence
-        new_boxes = []
-        new_classes = []
-        new_masks = []
-        new_scores = []
+            new_boxes = []
+            new_classes = []
+            new_masks = []
+            new_scores = []
 
-        for i in range(len(boxes)):
-            length = abs(boxes[i][0] - boxes[i][2])
-            width = abs(boxes[i][1] - boxes[i][3])
-            area = length * width
-            # Производим отбор боксов по их площади
-            if area > 10:
-                new_boxes.append(boxes[i])
-                new_classes.append(classes[i])
-                new_masks.append(masks[i])
-                new_scores.append(scores[i])
+            for i in range(len(boxes)):
+                length = abs(boxes[i][0] - boxes[i][2])
+                width = abs(boxes[i][1] - boxes[i][3])
+                area = length * width
+                if area > 10:
+                    new_boxes.append(boxes[i])
+                    new_classes.append(classes[i])
+                    new_masks.append(masks[i])
+                    new_scores.append(scores[i])
 
-        # Преобразуем списки в массив numpy
-        new_boxes = np.array(new_boxes)
-        new_masks = np.array(new_masks)
-        new_classes = np.array(new_classes)
-        new_scores = np.array(new_scores)
+            if new_boxes:
+                new_boxes = np.array(new_boxes)
+                new_masks = np.array(new_masks)
+                new_classes = np.array(new_classes)
+                new_scores = np.array(new_scores)
 
-        # Преобразуем массивы в sv.Detections
-        processed_detections = sv.Detections(xyxy=new_boxes,
-                                             mask=new_masks,
-                                             class_id=new_classes,
-                                             confidence=new_scores)
+                processed_detections = sv.Detections(xyxy=new_boxes,
+                                                     mask=new_masks,
+                                                     class_id=new_classes,
+                                                     confidence=new_scores)
+                boxes_annotations = process_annotations((processed_detections.xyxy, processed_detections.class_id))
+            else:
+                boxes_annotations = process_annotations(
+                    (np.empty((0, 4)), np.empty(0)))
 
-        boxes_annotations = process_annotations((processed_detections.xyxy, processed_detections.class_id))
-        annotations.append(boxes_annotations)
+            annotations.append(boxes_annotations)
+        except Exception as e:
+            print(f"Ошибка при обработке изображения {img}: {e}")
+            annotations.append(process_annotations((np.empty((0, 4)), np.empty(0))))
     return "Обработка завершена"
 
 
@@ -265,10 +270,9 @@ def get_results():
 
     with open(PATH_TO_CSV_TABLE, 'a', newline='', encoding='utf-8') as csvfile:
         nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        photo = os.listdir(IMAGE_FOLDER_NAME)[img_num_now]
         nerpwrite.writerow(
-            [0, os.listdir(IMAGE_FOLDER_NAME)[img_num_now], data[3], data[4], data[-2], count_seal_rock,
-             count_seal_water])
-    csvfile.close()
+            [0, photo, data[3], data[4], data[-2], count_seal_rock, count_seal_water])
 
 
 with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
