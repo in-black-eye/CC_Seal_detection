@@ -17,4 +17,6 @@ Mammalian detection model in complex cases + counting
 - скачать detectron2 (`git clone https://github.com/facebookresearch/detectron2.git`
                       `python -m pip install -e detectron2`);
 - скачать pytesseract (`sudo apt install tesseract-ocr`);
-- указать путь до весов модели.
+- скачать веса модели https://drive.google.com/file/d/1Tql1g69Puz4GF7LXNINdiXiy3n7wSkDf/view?usp=sharing
+- указать путь до весов модели в 46 строке interface_and_model_cfg.py
+- запустить interface_and_model_cfg.py
