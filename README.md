@@ -11,9 +11,11 @@ Mammalian detection model in complex cases + counting
 В данный момент, можно менять аннотации в самом gradio после того, как модель обработает изображение (то есть, можно удалить неправильные аннотации и/или разметить тех нерп, которых модель не увидела).
 
 # Запуск модели
-Для запуска файла необходимо в окружении (должны быть установлены версии torch, torchvision, torchaudio с CUDA):
+Для запуска файла необходимо в окружении:
+- установить torch, torchvision, torchaudio (`pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118`)
 - установить зависимости из requirements.txt;
-- скачать detectron2 (инструкция по установке: https://detectron2.readthedocs.io/en/latest/tutorials/install.html);
-- скачать pytesseract;
+- скачать detectron2 (`git clone https://github.com/facebookresearch/detectron2.git`
+                      `python -m pip install -e detectron2`);
+- скачать pytesseract (`sudo apt install tesseract-ocr`);
 - создать папку temp;
-- указать путь до весов модели и до tesseract.exe.
+- указать путь до весов модели.
