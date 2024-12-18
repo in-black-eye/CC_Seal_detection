@@ -12,12 +12,14 @@ Mammalian detection model in complex cases + counting
 
 # Запуск приложения
 тестировалось на `python=3.10`
+
 -клонировать репозиторий `git clone https://github.com/in-black-eye/CC_Seal_detection`
 
 - установить pytorch https://pytorch.org/get-started/locally/
 - `cd CC_Seal_detection`
 - установить зависимости `pip install -r requirements.txt`;
 - скачать detectron2 (`git clone https://github.com/facebookresearch/detectron2.git`
+
                       `python -m pip install -e detectron2`);
 - скачать pytesseract (`sudo apt install tesseract-ocr`);
 - скачать веса модели https://drive.google.com/file/d/1Tql1g69Puz4GF7LXNINdiXiy3n7wSkDf/view?usp=sharing
