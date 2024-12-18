@@ -25,8 +25,6 @@ PATH_TO_SAVE_ANNOTATIONS = 'saved_annotations'  # Папка, где будут 
 PATH_TO_ZIP_ARCHIVE = "annotated_images"  # Название архива с аннотациями
 DOWNLOAD_PATH_TO_ZIP_ARCHIVE = "annotated_images.zip"  # Путь к архиву с аннотациями
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Users\mark\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
-
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
 cfg.INPUT.MASK_FORMAT = "polygon"
@@ -45,7 +43,7 @@ cfg.INPUT.MIN_SIZE_TEST = 0
 '''Инференс модели'''
 
 cfg.TEST.PRECISE_BN = True
-cfg.MODEL.WEIGHTS = "output101FPN_3x1/model_0077399.pth"
+cfg.MODEL.WEIGHTS = "YOUR_MODEL_WEIGHTS"
 
 cfg.MODEL.RPN.IOU_THRESHOLDS = [0.1, 0.1]
 cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.1]
