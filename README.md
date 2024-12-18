@@ -10,13 +10,16 @@ Mammalian detection model in complex cases + counting
 
 В данный момент, можно менять аннотации в самом gradio после того, как модель обработает изображение (то есть, можно удалить неправильные аннотации и/или разметить тех нерп, которых модель не увидела).
 
-# Запуск модели
-Для запуска файла необходимо в окружении:
-- установить torch, torchvision, torchaudio (`pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118`)
-- установить зависимости из requirements.txt;
+# Запуск приложения
+тестировалось на `python=3.10`
+-клонировать репозиторий `git clone https://github.com/in-black-eye/CC_Seal_detection`
+
+- установить pytorch https://pytorch.org/get-started/locally/
+- `cd CC_Seal_detection`
+- установить зависимости `pip install -r requirements.txt`;
 - скачать detectron2 (`git clone https://github.com/facebookresearch/detectron2.git`
                       `python -m pip install -e detectron2`);
 - скачать pytesseract (`sudo apt install tesseract-ocr`);
 - скачать веса модели https://drive.google.com/file/d/1Tql1g69Puz4GF7LXNINdiXiy3n7wSkDf/view?usp=sharing
 - указать путь до весов модели в 46 строке interface_and_model_cfg.py
-- запустить interface_and_model_cfg.py
+- run `python3 interface_and_model_cfg.py`
