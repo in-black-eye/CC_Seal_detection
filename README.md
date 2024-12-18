@@ -16,9 +16,9 @@ Mammalian detection model in complex cases + counting
 -клонировать репозиторий 
 `git clone https://github.com/in-black-eye/CC_Seal_detection`
 - установить pytorch https://pytorch.org/get-started/locally/
- `cd CC_Seal_detection`
+- `cd CC_Seal_detection`
 - установить зависимости
-- 
+  
   `pip install -r requirements.txt`;
 - скачать detectron2
 - 
