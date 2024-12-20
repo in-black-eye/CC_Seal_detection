@@ -43,7 +43,7 @@ cfg.INPUT.MIN_SIZE_TEST = 0
 '''Инференс модели'''
 
 cfg.TEST.PRECISE_BN = True
-cfg.MODEL.WEIGHTS = "YOUR_MODEL_WEIGHTS"
+cfg.MODEL.WEIGHTS = "model_weights.pth"
 
 cfg.MODEL.RPN.IOU_THRESHOLDS = [0.1, 0.1]
 cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.1]
