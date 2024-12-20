@@ -15,5 +15,5 @@ Mammalian detection model in complex cases + counting
 # cpu only(gpu version soon)
 1. `apt-install docker.io`
 2. `docker pull arturaz0/seals_detection`
-3.`docker run -d -p 7860:7860 arturaz0/seals_detection:v1`
+3. `docker run -d -p 7860:7860 arturaz0/seals_detection:v1`
 4. В браузере `http://localhost:7860/`
