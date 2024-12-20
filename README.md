@@ -1,7 +1,7 @@
 # CC_Seal_detection
 Mammalian detection model in complex cases + counting
 
-Файл inference_and_model_cfg содержит в себе все необходимое для запуска инференса (Кроме весов модели, [Веса(клик)]([https://pages.github.com/](https://drive.google.com/file/d/1Tql1g69Puz4GF7LXNINdiXiy3n7wSkDf/view?usp=sharing)). 
+Файл inference_and_model_cfg содержит в себе все необходимое для запуска инференса (Кроме весов модели, [Веса(клик)][https://pages.github.com/](https://drive.google.com/file/d/1Tql1g69Puz4GF7LXNINdiXiy3n7wSkDf/view?usp=sharing) ). 
 Также можно запустить обучение на датасете в формате **COCO**.
 В самом коде указаны места, где и что нужно менять, чтобы запустить инференс/обучение модели (Например, YOUR_DATASET_TRAIN).
 
