@@ -42,7 +42,7 @@ mypy-extensions==1.0.0
 networkx==3.4.2
 numpy==2.0.0
 omegaconf==2.3.0
-opencv-python==4.10.0.84
+opencv-python-headless==4.10.0.84
 orjson==3.10.12
 packaging==24.2
 pandas==2.2.3
