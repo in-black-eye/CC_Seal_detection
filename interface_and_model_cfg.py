@@ -16,14 +16,15 @@ from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 import json
 import warnings
+import pandas as pd
 
 warnings.filterwarnings("ignore")
 
 IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотографии для обработки
-PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
+PATH_TO_EXCEL_TABLE = '../../Downloads/seal_data.xlsx'  # Таблица, в которую записываются данные о фото и количестве нерп.
 PATH_TO_SAVE_ANNOTATIONS = 'saved_annotations'  # Папка, где будут храниться аннотации к фото.
 PATH_TO_ZIP_ARCHIVE = "annotated_images"  # Название архива с аннотациями
-DOWNLOAD_PATH_TO_ZIP_ARCHIVE = "annotated_images.zip"  # Путь к архиву с аннотациями
+DOWNLOAD_PATH_TO_ZIP_ARCHIVE = "../../Downloads/annotated_images.zip"  # Путь к архиву с аннотациями
 
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
@@ -65,6 +66,12 @@ seals_colors = {1: (255, 0, 0),
 images = []
 img_num_now = 0
 
+columns = ["Номер фотоловушки (если не переименуем фотографии)", "название фото (номер фото)",
+           "дата (формат дд/мм/гггг)",
+           "время (формат чч/мм/сс)", "температура с фотоловушки", "Количество нерп на суше", "Количество нерп в воде"]
+
+data_rows = []
+
 
 def zipdir(path):
     make_archive(PATH_TO_ZIP_ARCHIVE, "zip", path)
@@ -78,14 +85,6 @@ def process_archive(files, slider_value, progress=gr.Progress()):
         "image": "",
         "boxes": []
     }
-
-    with open(PATH_TO_CSV_TABLE, 'w', newline='', encoding='utf-8') as csvfile:
-        nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        nerpwrite.writerow(
-            ["Номер фотоловушки (если не переименуем фотографии)", "название фото (номер фото)",
-             "дата (формат дд/мм/гггг)",
-             "время (формат чч/мм/сс)", "температура с фотоловушки", "Количество нерп на суше",
-             "Количество нерп в воде"])
 
     if not os.path.exists(IMAGE_FOLDER_NAME):
         os.makedirs(IMAGE_FOLDER_NAME)
@@ -238,11 +237,9 @@ def get_results(index):
     img_rgb = cv2.cvtColor(cropped_img_cv, cv2.COLOR_BGR2RGB)
     data = pytesseract.image_to_string(img_rgb, config='--psm 6').split('\n')[-2].split()
 
-    with open(PATH_TO_CSV_TABLE, 'a', newline='', encoding='utf-8') as csvfile:
-        nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-        photo = os.listdir(IMAGE_FOLDER_NAME)[index]
-        nerpwrite.writerow(
-            [photo.split("_")[0], photo.split("_")[1], data[3], data[4], data[-2], count_seal_rock, count_seal_water])
+    photo = os.listdir(IMAGE_FOLDER_NAME)[index]
+    row_data = [photo.split("_")[0], photo.split("_")[1], data[3], data[4], data[-2], count_seal_rock, count_seal_water]
+    data_rows.append(row_data)
 
 
 def get_csv_file():
@@ -285,7 +282,10 @@ def get_csv_file():
         classes_id = []
         boxes = []
 
-    return PATH_TO_CSV_TABLE
+    info_dataframe = pd.DataFrame(data_rows, columns=columns)
+    info_dataframe.to_excel(PATH_TO_EXCEL_TABLE, index=False)
+
+    return PATH_TO_EXCEL_TABLE
 
 
 with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
