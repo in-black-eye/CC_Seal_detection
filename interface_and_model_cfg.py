@@ -21,10 +21,10 @@ import pandas as pd
 warnings.filterwarnings("ignore")
 
 IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотографии для обработки
-PATH_TO_EXCEL_TABLE = 'seal_data.xlsx'  # Таблица, в которую записываются данные о фото и количестве нерп.
+PATH_TO_EXCEL_TABLE = '../../Downloads/seal_data.xlsx'  # Таблица, в которую записываются данные о фото и количестве нерп.
 PATH_TO_SAVE_ANNOTATIONS = 'saved_annotations'  # Папка, где будут храниться аннотации к фото.
 PATH_TO_ZIP_ARCHIVE = "annotated_images"  # Название архива с аннотациями
-DOWNLOAD_PATH_TO_ZIP_ARCHIVE = "annotated_images.zip"  # Путь к архиву с аннотациями
+DOWNLOAD_PATH_TO_ZIP_ARCHIVE = "../../Downloads/annotated_images.zip"  # Путь к архиву с аннотациями
 
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
@@ -330,4 +330,4 @@ with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
                                                                                              outputs=None,
                                                                                              js="() => document.querySelector('#download_btn_hidden').click()")
 
-main.launch(share=True)
+main.launch(root_path='/gradio-demo')
