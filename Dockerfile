@@ -1,5 +1,5 @@
 
-FROM python:3.10-slim
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 
 RUN apt-get update && \
@@ -19,7 +19,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Устанавливаем PyTorch 
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
 # Клонируем репозиторий detectron2 и устанавливаем его
 RUN git clone https://github.com/facebookresearch/detectron2.git /detectron2 && \
