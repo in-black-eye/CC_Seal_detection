@@ -91,6 +91,9 @@ def process_archive(files, slider_value, progress=gr.Progress()):
     else:
         print(f"Папка `{IMAGE_FOLDER_NAME}` уже существует!")
 
+    if os.path.exists(PATH_TO_EXCEL_TABLE):
+        os.remove(PATH_TO_EXCEL_TABLE)
+
     if not os.path.exists(PATH_TO_SAVE_ANNOTATIONS):
         os.makedirs(PATH_TO_SAVE_ANNOTATIONS)
         os.makedirs(f"{PATH_TO_SAVE_ANNOTATIONS}/image")
@@ -330,4 +333,4 @@ with gr.Blocks(theme=gr.themes.Soft(), css_paths='styles.css') as main:
                                                                                              outputs=None,
                                                                                              js="() => document.querySelector('#download_btn_hidden').click()")
 
-main.launch(root_path='/gradio-demo')
+main.launch(root_path='')
