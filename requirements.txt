@@ -1,3 +1,5 @@
+openpyxl
+pandas
 absl-py==2.1.0
 aiofiles==23.2.1
 annotated-types==0.7.0
@@ -42,7 +44,7 @@ mypy-extensions==1.0.0
 networkx==3.4.2
 numpy==2.0.0
 omegaconf==2.3.0
-opencv-python==4.10.0.84
+opencv-python-headless==4.10.0.84
 orjson==3.10.12
 packaging==24.2
 pandas==2.2.3
@@ -61,7 +63,7 @@ pytesseract==0.3.13
 python-dateutil==2.9.0.post0
 python-multipart==0.0.20
 pytz==2024.2
-pywin32==308
+pywin32==308;sys_platform == 'win32'
 PyYAML==6.0.2
 requests==2.32.3
 rich==13.9.4
