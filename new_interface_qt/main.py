@@ -16,10 +16,12 @@ from detectron2.config import get_cfg
 import json
 import warnings
 import math
+from anylabeling.views.mainwindow import MainWindow
+from anylabeling import app
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QWidget, QVBoxLayout, QSizePolicy
 
 import sys
 
@@ -30,70 +32,75 @@ PATH_TO_ZIP_ARCHIVE = "annotated_images"  # Название архива с а�
 DOWNLOAD_PATH_TO_ZIP_ARCHIVE = "annotated_images.zip"  # Путь к архиву с аннотациями
 
 
+class AnyLabelingWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        # Создаем макет для вкладки
+        layout = QVBoxLayout(self)
+
+        # Создаем экземпляр AnyLabeling
+        self.any_labeling = MainWindow(app)  # Подключаем основной интерфейс AnyLabeling
+
+        # Добавляем AnyLabeling в макет
+        layout.addWidget(self.any_labeling)
+
+        self.setLayout(layout)
+
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800, 600)
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
-        self.main_widget = QtWidgets.QTabWidget(self.centralwidget)
-        self.main_widget.setGeometry(QtCore.QRect(0, 0, 800, 600))
-        self.main_widget.setObjectName("main_widget")
+        MainWindow.resize(800,600)
+
+        self.centralwidget = QtWidgets.QTabWidget(MainWindow)
+        self.centralwidget.setObjectName("central widget")
 
         self.tab_process = QtWidgets.QWidget()
         self.tab_process.setObjectName("tab_process")
         self.tab_annot = QtWidgets.QWidget()
         self.tab_annot.setObjectName("tab_annot")
-        self.main_widget.addTab(self.tab_process, "")
-        self.main_widget.addTab(self.tab_annot, "")
+
+        self.centralwidget.addTab(self.tab_process, "")
+        self.centralwidget.addTab(self.tab_annot, "")
+
+        # Используем QVBoxLayout для tab_process
+        self.layout = QVBoxLayout(self.tab_process)
 
         self.slider_confidence = QtWidgets.QSlider(self.tab_process)
-        self.slider_confidence.setGeometry(QtCore.QRect(100, 20, 600, 22))
         self.slider_confidence.setOrientation(QtCore.Qt.Horizontal)
         self.slider_confidence.setObjectName("slider_confidence")
 
         self.btn_drop_file = QtWidgets.QPushButton(self.tab_process)
-        self.btn_drop_file.setGeometry(QtCore.QRect(100, 70, 600, 181))
         self.btn_drop_file.setObjectName("btn_drop_file")
 
         self.btn_submit = QtWidgets.QPushButton(self.tab_process)
-        self.btn_submit.setGeometry(QtCore.QRect(100, 260, 600, 40))
         self.btn_submit.setObjectName("btn_submit")
 
         self.progressBar = QtWidgets.QProgressBar(self.tab_process)
-        self.progressBar.setGeometry(QtCore.QRect(100, 330, 631, 23))
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName("progressBar")
 
-        self.btn_show_annot = QtWidgets.QPushButton(self.tab_annot)
-        self.btn_show_annot.setGeometry(QtCore.QRect(90, 50, 400, 40))
-        self.btn_show_annot.setObjectName("btn_show_annot")
+        # Добавляем элементы в layout
+        self.layout.addWidget(self.slider_confidence)
+        self.layout.addWidget(self.btn_drop_file)
+        self.layout.addWidget(self.btn_submit)
+        self.layout.addWidget(self.progressBar)
 
-        self.btn_save_annot = QtWidgets.QPushButton(self.tab_annot)
-        self.btn_save_annot.setGeometry(QtCore.QRect(505, 50, 200, 40))
-        self.btn_save_annot.setObjectName("btn_save_annot")
+        self.tab_process.setLayout(self.layout)
 
-        self.btn_prev_img = QtWidgets.QPushButton(self.tab_annot)
-        self.btn_prev_img.setGeometry(QtCore.QRect(90, 100, 300, 40))
-        self.btn_prev_img.setObjectName("btn_prev_img")
+        # Добавляем AnyLabelingWidget на вкладку "Object Annotation"
+        self.any_labeling_widget = AnyLabelingWidget(self.tab_annot)
 
-        self.btn_next_img = QtWidgets.QPushButton(self.tab_annot)
-        self.btn_next_img.setGeometry(QtCore.QRect(405, 100, 300, 40))
-        self.btn_next_img.setObjectName("btn_next_img")
+        self.layout_annot = QVBoxLayout(self.tab_annot)
+        self.layout_annot.addWidget(self.any_labeling_widget)
 
-        self.btn_save_table = QtWidgets.QPushButton(self.tab_annot)
-        self.btn_save_table.setGeometry(QtCore.QRect(90, 150, 620, 40))
-        self.btn_save_table.setObjectName("btn_save_table")
+        self.tab_annot.setLayout(self.layout_annot)
 
-        self.annotator_temp = QtWidgets.QLabel(self.tab_annot)
-        self.annotator_temp.setGeometry(QtCore.QRect(90, 200, 621, 331))
-        self.annotator_temp.setStyleSheet("background-color: rgb(168, 168, 168);")
-        self.annotator_temp.setObjectName("annotator_temp")
 
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
-        self.main_widget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -101,14 +108,8 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(_translate("MainWindow", "Seal Detection"))
         self.btn_drop_file.setText(_translate("MainWindow", "Перетащиет файл сюда или Нажмите, чтобы загрузить"))
         self.btn_submit.setText(_translate("MainWindow", "Обработать"))
-        self.main_widget.setTabText(self.main_widget.indexOf(self.tab_process), _translate("MainWindow", "Process"))
-        self.btn_show_annot.setText(_translate("MainWindow", "Показать аннотации"))
-        self.btn_save_annot.setText(_translate("MainWindow", "Скачать аннотации"))
-        self.btn_prev_img.setText(_translate("MainWindow", "Предыдущаю фотография"))
-        self.btn_next_img.setText(_translate("MainWindow", "Следующая фотография"))
-        self.btn_save_table.setText(_translate("MainWindow", "Скачать таблицу"))
-        self.annotator_temp.setText(_translate("MainWindow", "Картинка"))
-        self.main_widget.setTabText(self.main_widget.indexOf(self.tab_annot), _translate("MainWindow", "Object Annotation"))
+        self.centralwidget.setTabText(0, _translate("MainWindow", "Process"))
+        self.centralwidget.setTabText(1, _translate("MainWindow", "Object Annotation"))
 
 
 class ImageProcessingThread(QThread):
