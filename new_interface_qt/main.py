@@ -1,29 +1,14 @@
-import pytesseract
-import csv
-import cv2
+import sys
+
 import numpy as np
 import supervision as sv
-import os
-from pathlib import Path
-from shutil import rmtree, make_archive
-
-from zipfile import ZipFile
-
+from PyQt5 import QtCore
 from PyQt5.QtCore import QThread, pyqtSignal
-from detectron2 import model_zoo
-from detectron2.engine import DefaultPredictor
-from detectron2.config import get_cfg
-import json
-import warnings
-import math
-from anylabeling.views.mainwindow import MainWindow
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QPushButton, QProgressBar, QLabel
 from anylabeling import app
-
-
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QWidget, QVBoxLayout, QSizePolicy
-
-import sys
+from anylabeling.views.mainwindow import MainWindow
 
 IMAGE_FOLDER_NAME = 'temp'  # Папка, где хранятся фотографии для обработки
 PATH_TO_CSV_TABLE = 'example_table.csv'  # Таблица, в которую записываются данные о фото и количестве нерп.
@@ -51,54 +36,11 @@ class AnyLabelingWidget(QWidget):
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800,600)
+        MainWindow.resize(1000,800)
 
-        self.centralwidget = QtWidgets.QTabWidget(MainWindow)
-        self.centralwidget.setObjectName("central widget")
+        self.any_labeling_widget = AnyLabelingWidget(MainWindow)
 
-        self.tab_process = QtWidgets.QWidget()
-        self.tab_process.setObjectName("tab_process")
-        self.tab_annot = QtWidgets.QWidget()
-        self.tab_annot.setObjectName("tab_annot")
-
-        self.centralwidget.addTab(self.tab_process, "")
-        self.centralwidget.addTab(self.tab_annot, "")
-
-        # Используем QVBoxLayout для tab_process
-        self.layout = QVBoxLayout(self.tab_process)
-
-        self.slider_confidence = QtWidgets.QSlider(self.tab_process)
-        self.slider_confidence.setOrientation(QtCore.Qt.Horizontal)
-        self.slider_confidence.setObjectName("slider_confidence")
-
-        self.btn_drop_file = QtWidgets.QPushButton(self.tab_process)
-        self.btn_drop_file.setObjectName("btn_drop_file")
-
-        self.btn_submit = QtWidgets.QPushButton(self.tab_process)
-        self.btn_submit.setObjectName("btn_submit")
-
-        self.progressBar = QtWidgets.QProgressBar(self.tab_process)
-        self.progressBar.setProperty("value", 0)
-        self.progressBar.setObjectName("progressBar")
-
-        # Добавляем элементы в layout
-        self.layout.addWidget(self.slider_confidence)
-        self.layout.addWidget(self.btn_drop_file)
-        self.layout.addWidget(self.btn_submit)
-        self.layout.addWidget(self.progressBar)
-
-        self.tab_process.setLayout(self.layout)
-
-        # Добавляем AnyLabelingWidget на вкладку "Object Annotation"
-        self.any_labeling_widget = AnyLabelingWidget(self.tab_annot)
-
-        self.layout_annot = QVBoxLayout(self.tab_annot)
-        self.layout_annot.addWidget(self.any_labeling_widget)
-
-        self.tab_annot.setLayout(self.layout_annot)
-
-
-        MainWindow.setCentralWidget(self.centralwidget)
+        MainWindow.setCentralWidget(self.any_labeling_widget)
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -106,10 +48,6 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Seal Detection"))
-        self.btn_drop_file.setText(_translate("MainWindow", "Перетащиет файл сюда или Нажмите, чтобы загрузить"))
-        self.btn_submit.setText(_translate("MainWindow", "Обработать"))
-        self.centralwidget.setTabText(0, _translate("MainWindow", "Process"))
-        self.centralwidget.setTabText(1, _translate("MainWindow", "Object Annotation"))
 
 
 class ImageProcessingThread(QThread):
@@ -132,47 +70,6 @@ class ImageProcessingThread(QThread):
         """Метод для остановки потока"""
         self._is_running = False
 
-    def process_archive(self, file_path, slider_value):
-        self.annotations.clear()
-
-        with open(PATH_TO_CSV_TABLE, 'w', newline='', encoding='utf-8') as csvfile:
-            nerpwrite = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            nerpwrite.writerow(
-                ["Номер фотоловушки (если не переименуем фотографии)", "название фото (номер фото)",
-                 "дата (формат дд/мм/гггг)", "время (формат чч/мм/сс)", "температура с фотоловушки",
-                 "Количество нерп на суше", "Количество нерп в воде"])
-
-        if not os.path.exists(IMAGE_FOLDER_NAME):
-            os.makedirs(IMAGE_FOLDER_NAME)
-
-        if not os.path.exists(PATH_TO_SAVE_ANNOTATIONS):
-            os.makedirs(PATH_TO_SAVE_ANNOTATIONS)
-            os.makedirs(f"{PATH_TO_SAVE_ANNOTATIONS}/image")
-
-        for path in Path(IMAGE_FOLDER_NAME).glob('*'):
-            if path.is_dir():
-                rmtree(path)
-            else:
-                path.unlink()
-
-        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = slider_value
-        self.cfg.MODEL.RETINANET.SCORE_THRESH_TEST = slider_value
-        predictor = DefaultPredictor(self.cfg)
-
-        with ZipFile(file_path, "r") as archive:
-            archive.extractall(IMAGE_FOLDER_NAME)
-
-        files_in_temp = os.listdir(IMAGE_FOLDER_NAME)
-        files_count = len(files_in_temp)
-
-        for num, img in enumerate(files_in_temp):
-            image = cv2.imread(f"{IMAGE_FOLDER_NAME}/{img}")
-            self.predict_seals(predictor, image)
-
-            progress = int((num + 1) * (100 // files_count))
-            self.progressUpdated.emit(progress)
-
-        self.processingFinished.emit()  # Завершаем обработку
 
     def predict_seals(self, predictor, image):
         outputs = predictor(image)
@@ -228,35 +125,48 @@ class ImageProcessingThread(QThread):
         return json_ann
 
 
+class ProgressPopup(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Загрузка")
+        self.setFixedSize(300, 150)
+        self.setWindowModality(Qt.ApplicationModal)
+
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        self.label = QLabel("Загрузка...")
+        self.label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.label)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        layout.addWidget(self.progress_bar)
+
+        self.ok_button = QPushButton("ОК")
+        self.ok_button.setEnabled(False)
+        self.ok_button.clicked.connect(self.close)
+        layout.addWidget(self.ok_button)
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_progress)
+        self.progress_value = 0
+        self.timer.start(50)  # Обновление каждые 50 мс
+
+    def update_progress(self):
+        if self.progress_value < 100:
+            self.progress_value += 2
+            self.progress_bar.setValue(self.progress_value)
+        else:
+            self.timer.stop()
+            self.label.setText("Готово!")
+            self.ok_button.setEnabled(True)
+
+
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)  # Устанавливаем UI
-
-        self.cfg = get_cfg()
-        self.cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
-        self.cfg.INPUT.MASK_FORMAT = "polygon"
-        self.cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-            "COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml")
-
-        self.cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.45
-        self.cfg.MODEL.RETINANET.NMS_THRESH_TEST = 0.45
-
-        self.cfg.MODEL.SEM_SEG_HEAD.NUM_CLASSES = 3
-        self.cfg.MODEL.RETINANET.NUM_CLASSES = 3
-        self.cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
-
-        self.cfg.INPUT.MIN_SIZE_TEST = 0
-
-        '''Инференс модели'''
-
-        self.cfg.TEST.PRECISE_BN = True
-        self.cfg.MODEL.WEIGHTS = "model_0077399.pth"
-        self.cfg.MODEL.DEVICE = "cpu"
-
-
-        self.cfg.MODEL.RPN.IOU_THRESHOLDS = [0.1, 0.1]
-        self.cfg.MODEL.ROI_HEADS.IOU_THRESHOLDS = [0.1]
 
         self.sample_annotation = {
             "image": "",
@@ -278,8 +188,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.zip_file_path = ""
         self.thread = None
 
-        self.btn_drop_file.clicked.connect(self.open_file_dialog)
-        self.btn_submit.clicked.connect(self.submit_images)
 
     def open_file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Выберите файл", "", "Все файлы (*);;Текстовые файлы (*.txt)")
