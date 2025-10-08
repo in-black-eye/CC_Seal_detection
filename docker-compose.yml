@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  seals_detection:
+    build: .
+    ports:
+      - "7860:7860"
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - MODEL_WEIGHTS_PATH=/app/model_weights.pth
+    volumes:
+      # Если нужно монтировать веса извне:
+      # - ./model_weights.pth:/app/model_weights.pth:ro
+    restart: unless-stopped
